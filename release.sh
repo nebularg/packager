@@ -2188,6 +2188,11 @@ if [ -z "$skip_zipfile" ]; then
 		if [ -z "$wowi_archive" ]; then
 			_wowi_args+=("-F archive=No")
 		fi
+		if [ -n "$classic" ]; then
+			_wowi_args+=( "-F updatefile_classic=@$archive""-F version_classic=$archive_version" )
+		else
+			_wowi_args+=( "-F updatefile=@$archive" "-F version=$archive_version" )
+		fi
 
 		echo "Uploading $archive_name ($game_version) to https://www.wowinterface.com/downloads/info$addonid"
 		resultfile="$releasedir/wi_result.json"
@@ -2195,10 +2200,8 @@ if [ -z "$skip_zipfile" ]; then
 			  -w "%{http_code}" -o "$resultfile" \
 			  -H "x-api-token: $wowi_token" \
 			  -F "id=$addonid" \
-			  -F "version=$archive_version" \
 			  -F "compatible=$game_version" \
 			  "${_wowi_args[@]}" \
-			  -F "updatefile=@$archive" \
 			  "https://api.wowinterface.com/addons/update" ) &&
 		{
 			case $result in
