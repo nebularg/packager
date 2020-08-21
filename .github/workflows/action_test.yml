@@ -2,6 +2,9 @@ name: Test
 
 on: push
 
+env:
+  CF_API_KEY: ${{ secrets.CF_API_KEY }}
+
 jobs:
   action_test:
     runs-on: ubuntu-latest
@@ -17,5 +20,18 @@ jobs:
       uses: nebularg/packager@actionfun
       with:
         args: -ldp 1
-      env:
-        CF_API_KEY: ${{ secrets.CF_API_KEY }}
+
+  windows_test:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout test addon
+      uses: actions/checkout@v2
+      with:
+        repository: nebularg/PackagerTest
+        fetch-depth: 0
+
+    - name: Run action
+      uses: nebularg/packager@actionfun
+      with:
+        args: -ldp 1
