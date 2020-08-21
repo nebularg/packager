@@ -1,0 +1,20 @@
+name: Test
+
+on: push
+
+jobs:
+  action_test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout test addon
+      uses: actions/checkout@v2
+      with:
+        repository: nebularg/PackagerTest
+        path: TestGit
+        fetch-depth: 0
+
+    - name: Run action
+      uses: nebularg/packager@actionfun
+      with:
+        args: -t "$GITHUB_WORKSPACE/TestGit"

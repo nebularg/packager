@@ -3,8 +3,15 @@ description: Builds and publishes World of Warcraft AddOns
 branding:
   icon: package
   color: yellow
+inputs:
+  args:
+    description: 'Command-Line Arguments'
+    required: false
+    default: ''
 runs:
-  using: docker
-  image: Dockerfile
-  entrypoint: release.sh
-
+  using: composite
+  steps:
+    - run: echo Hello ${{ github.action_path }} && ls -la ${{ github.action_path }}
+      shell: bash
+    - run: $GITHUB_ACTION_PATH/release.sh -t "$GITHUB_WORKSPACE" ${{ inputs.args }}
+      shell: bash
