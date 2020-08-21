@@ -15,3 +15,7 @@ jobs:
 
     - name: Run action
       uses: nebularg/packager@actionfun
+      with:
+        args: -L
+      env:
+        CF_API_KEY: ${{ secrets.CF_API_KEY }}
