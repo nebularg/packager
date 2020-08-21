@@ -8,14 +8,14 @@ inputs:
     description: 'Command-Line Arguments'
     required: false
     default: ''
-  path:
+  topdir:
     description: 'Top-level directory of checkout'
     required: false
     default: ${{ github.workspace }}
 runs:
   using: composite
   steps:
-    - run: echo cd ${{ inputs.topdir }} && $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
+    - run: echo "cd ${{ inputs.topdir }} && $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}"
       shell: bash
     - run: cd ${{ inputs.topdir }} && $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
       shell: bash
