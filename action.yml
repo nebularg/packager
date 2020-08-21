@@ -4,18 +4,18 @@ branding:
   icon: package
   color: yellow
 inputs:
+  path:
+    description: 'Top-level directory of the addon'
+    required: false
+    default: ${{ github.workspace }}
   args:
     description: 'Command-Line Arguments'
     required: false
     default: ''
-  topdir:
-    description: 'Top-level directory of checkout'
-    required: false
-    default: ${{ github.workspace }}
 runs:
   using: composite
   steps:
-    - run: cd ${{ inputs.topdir }}
+    - run: cd ${{ inputs.path }}
       shell: bash
     - run: $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
       shell: bash
