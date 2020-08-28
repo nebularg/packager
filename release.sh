@@ -1291,7 +1291,11 @@ copy_directory_tree() {
 	_cdt_srcdir=$1
 	_cdt_destdir=$2
 
-	startGroup "Copying files into ${_cdt_destdir#$topdir/}:" "copy"
+	if [ -z "$_external_dir" ]; then
+		startGroup "Copying files into ${_cdt_destdir#$topdir/}:" "copy"
+	else
+		echo "Copying files into ${_cdt_destdir#$topdir/}:"
+	fi
 	if [ ! -d "$_cdt_destdir" ]; then
 		mkdir -p "$_cdt_destdir"
 	fi
@@ -1394,7 +1398,11 @@ copy_directory_tree() {
 			fi
 		fi
 	done
-	endGroup "copy"
+	if [ -z "$_external_dir" ]; then
+		endGroup "copy"
+	else
+		echo
+	fi
 }
 
 if [ -z "$skip_copying" ]; then
@@ -1734,11 +1742,11 @@ fi
 # Create a changelog in the package directory if the source directory does
 # not contain a manual changelog.
 if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
-	echo "Using manual changelog at $changelog"
+	startGroup "Using manual changelog at $changelog" "changelog"
 	echo
 	head -n7 "$topdir/$changelog"
 	[ "$( wc -l < "$topdir/$changelog" )" -gt 7 ] && echo "..."
-	echo
+	endGroup "changelog"
 
 	if [ "$changelog_markup" = "markdown" ]; then
 		# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
@@ -1789,7 +1797,7 @@ else
 	changelog="CHANGELOG.md"
 	changelog_markup="markdown"
 
-	echo "Generating changelog of commits into $changelog"
+	startGroup "Generating changelog of commits into $changelog" "changelog"
 
 	if [ "$repository_type" = "git" ]; then
 		changelog_url=
@@ -1951,7 +1959,7 @@ else
 
 	echo
 	echo "$(<"$pkgdir/$changelog")"
-	echo
+	endGroup "changelog"
 fi
 
 ###
