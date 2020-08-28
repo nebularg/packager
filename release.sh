@@ -27,8 +27,16 @@
 #
 # For more information, please refer to <http://unlicense.org/>
 
+startGroup() { echo "$1" }
+endGroup() { echo }
+
 # add some travis checks so we don't need to do it in the yaml file
 if [ -n "$TRAVIS" ]; then
+	startGroup() {
+		echo "$1"
+		echo -en "travis_fold:start:$2\\r\033[0K"
+	}
+	endGroup() { echo -en "travis_fold:end:$1\\r\033[0K" }
 	# don't need to run the packager for pull requests
 	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
 		echo "Not packaging pull request."
@@ -49,11 +57,15 @@ if [ -n "$TRAVIS" ]; then
 	fi
 fi
 # actions check to prevent duplicate builds
-if [[ -n "$GITHUB_ACTIONS" && "$GITHUB_REF" == "refs/heads"* && -d "$GITHUB_WORKSPACE/.git" ]]; then
-	GITHUB_TAG=$( git -C "$GITHUB_WORKSPACE" tag --points-at HEAD )
-	if [ -n "$GITHUB_TAG" ]; then
-		echo "Found future tag \"${GITHUB_TAG}\", not packaging."
-		exit 0
+if [[ -n "$GITHUB_ACTIONS" ]]; then
+	startGroup() { echo "##[group]$1" }
+	endGroup() { echo "##[endgroup]" }
+	if [[ "$GITHUB_REF" == "refs/heads"* && -d "$GITHUB_WORKSPACE/.git" ]]; then
+		GITHUB_TAG=$( git -C "$GITHUB_WORKSPACE" tag --points-at HEAD )
+		if [ -n "$GITHUB_TAG" ]; then
+			echo "Found future tag \"${GITHUB_TAG}\", not packaging."
+			exit 0
+		fi
 	fi
 fi
 
@@ -919,7 +931,7 @@ set_localization_url() {
 	if [ -n "$slug" ] && [ -n "$cf_token" ] && [ -n "$project_site" ]; then
 		localization_url="${project_site}/api/projects/$slug/localization/export"
 	fi
-	if [ -z "$localization_url" ] && grep -rq --include="*.lua" "@localization" "$topdir"; then
+	if [ -z "$localization_url" ] && grep -rqm1 --include="*.lua" "@localization" "$topdir"; then
 		echo "Skipping localization! Missing CurseForge API token and/or project id is invalid."
 		echo
 	fi
@@ -1282,7 +1294,7 @@ copy_directory_tree() {
 	_cdt_srcdir=$1
 	_cdt_destdir=$2
 
-	echo "Copying files into ${_cdt_destdir#$topdir/}:"
+	startGroup "Copying files into ${_cdt_destdir#$topdir/}:" "copy"
 	if [ ! -d "$_cdt_destdir" ]; then
 		mkdir -p "$_cdt_destdir"
 	fi
@@ -1385,6 +1397,7 @@ copy_directory_tree() {
 			fi
 		fi
 	done
+	endGroup "copy"
 }
 
 if [ -z "$skip_copying" ]; then
@@ -1408,7 +1421,6 @@ if [ -z "$skip_copying" ]; then
 		cdt_args="$cdt_args -u \"$changelog\""
 	fi
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""
-	echo
 fi
 
 # Reset ignore and parse pkgmeta ignores again to handle ignoring external paths
@@ -1628,7 +1640,8 @@ kill_externals() {
 }
 trap kill_externals INT
 
-if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
+if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ] && grep -qm1 "^externals:" "$pkgmeta_file"; then
+	startGroup "Fetching externals" "externals"
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof="true"
@@ -1707,6 +1720,7 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 		fi
 		echo
 	fi
+	endGroup "externals"
 fi
 
 # Restore the signal handlers
@@ -2031,7 +2045,7 @@ if [ -z "$skip_zipfile" ]; then
 		nolib_archive=
 	fi
 
-	echo "Creating archive: $archive_name"
+	startGroup "Creating archive: $archive_name" "archive"
 
 	if [ -f "$archive" ]; then
 		rm -f "$archive"
@@ -2041,11 +2055,12 @@ if [ -z "$skip_zipfile" ]; then
 	if [ ! -f "$archive" ]; then
 		exit 1
 	fi
-	echo
+
+	endGroup "archive"
 
 	# Create nolib version of the zipfile
 	if [ -n "$enable_nolib_creation" ] && [ -z "$nolib" ] && [ -n "$nolib_exclude" ]; then
-		echo "Creating no-lib archive: $nolib_archive_name"
+		startGroup "Creating no-lib archive: $nolib_archive_name" "archive.nolib"
 
 		# run the nolib_filter
 		find "$pkgdir" -type f \( -name "*.xml" -o -name "*.toc" \) -print | while read -r file; do
@@ -2068,7 +2083,8 @@ if [ -z "$skip_zipfile" ]; then
 		if [ ! -f "$nolib_archive" ]; then
 			exit_code=1
 		fi
-		echo
+
+		endGroup "archive.nolib"
 	fi
 
 	###
