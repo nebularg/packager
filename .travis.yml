@@ -1,0 +1,12 @@
+language: minimal
+
+branches:
+  only:
+    - actionfun
+
+script:
+  - git checkout https://github.com/nebularg/PackagerTest.git ~/nebularg/PackagerTest
+  - $TRAVIS_BUILD_DIR/release.sh -t ~/nebularg/PackagerTest -ldp 1
+
+notifications:
+  email: false

@@ -46,11 +46,6 @@ if [ -n "$TRAVIS" ]; then
 			echo "Found future tag \"${TRAVIS_TAG}\", not packaging."
 			exit 0
 		fi
-		# only want to package master, classic, or a tag
-		if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ] && [ "$TRAVIS_BRANCH" != "develop" ]; then
-			echo "Not packaging \"${TRAVIS_BRANCH}\"."
-			exit 0
-		fi
 	fi
 fi
 # actions check to prevent duplicate builds
@@ -2401,6 +2396,7 @@ fi
 
 # All done.
 
+echo
 echo "Packaging complete."
 echo
 
