@@ -27,16 +27,13 @@
 #
 # For more information, please refer to <http://unlicense.org/>
 
-startGroup() { echo "$1" }
-endGroup() { echo }
+startGroup() { echo "$1"; }
+endGroup() { echo; }
 
 # add some travis checks so we don't need to do it in the yaml file
 if [ -n "$TRAVIS" ]; then
-	startGroup() {
-		echo "$1"
-		echo -en "travis_fold:start:$2\\r\033[0K"
-	}
-	endGroup() { echo -en "travis_fold:end:$1\\r\033[0K" }
+	startGroup() { echo "$1"; echo -en "travis_fold:start:$2\\r\033[0K"; }
+	endGroup() { echo -en "travis_fold:end:$1\\r\033[0K"; }
 	# don't need to run the packager for pull requests
 	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
 		echo "Not packaging pull request."
@@ -58,8 +55,8 @@ if [ -n "$TRAVIS" ]; then
 fi
 # actions check to prevent duplicate builds
 if [[ -n "$GITHUB_ACTIONS" ]]; then
-	startGroup() { echo "##[group]$1" }
-	endGroup() { echo "##[endgroup]" }
+	startGroup() { echo "##[group]$1"; }
+	endGroup() { echo "##[endgroup]"; }
 	if [[ "$GITHUB_REF" == "refs/heads"* && -d "$GITHUB_WORKSPACE/.git" ]]; then
 		GITHUB_TAG=$( git -C "$GITHUB_WORKSPACE" tag --points-at HEAD )
 		if [ -n "$GITHUB_TAG" ]; then
