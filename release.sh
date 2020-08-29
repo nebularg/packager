@@ -1743,7 +1743,6 @@ fi
 # not contain a manual changelog.
 if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
 	start_group "Using manual changelog at $changelog" "changelog"
-	echo
 	head -n7 "$topdir/$changelog"
 	[ "$( wc -l < "$topdir/$changelog" )" -gt 7 ] && echo "..."
 	end_group "changelog"
@@ -1957,7 +1956,6 @@ else
 		fi
 	fi
 
-	echo
 	echo "$(<"$pkgdir/$changelog")"
 	end_group "changelog"
 fi
