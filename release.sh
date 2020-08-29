@@ -32,7 +32,7 @@ endGroup() { echo; }
 
 # add some travis checks so we don't need to do it in the yaml file
 if [ -n "$TRAVIS" ]; then
-	startGroup() { echo -en "travis_fold:start:$2\\r\033[0K\r$1\r"; }
+	startGroup() { echo -en "travis_fold:start:$2\\r\033[0K$1\\r"; }
 	endGroup() { echo -en "travis_fold:end:$1\\r\033[0K"; }
 	# don't need to run the packager for pull requests
 	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
