@@ -51,7 +51,7 @@ fi
 # actions check to prevent duplicate builds
 if [[ -n "$GITHUB_ACTIONS" ]]; then
 	start_group() { echo "##[group]$1"; }
-	end_group() { echo "##[end_group]"; }
+	end_group() { echo "##[endgroup]"; }
 	if [[ "$GITHUB_REF" == "refs/heads"* && -d "$GITHUB_WORKSPACE/.git" ]]; then
 		GITHUB_TAG=$( git -C "$GITHUB_WORKSPACE" tag --points-at HEAD )
 		if [ -n "$GITHUB_TAG" ]; then
