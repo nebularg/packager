@@ -1619,9 +1619,14 @@ process_external() {
 			output_file="$releasedir/.$id.externalout"
 			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_extra_type" &> "$output_file"
 			status=$?
-			[ "$status" -eq 0 ] && start_group "$( head -n1 "$output_file" )" "external.$id"
-			tail -n+2 "$output_file"
-			[ "$status" -eq 0 ] && end_group "external.$id"
+			if [ "$status" -eq 0 ]; then
+				start_group "$( head -n1 "$output_file" )" "external.$id"
+				tail -n+2 "$output_file"
+				end_group "external.$id"
+			else
+				echo
+				echo "$(<"$output_file")"
+			fi
 			rm -f "$output_file" 2>/dev/null
 			exit $status
 		) &
@@ -1710,6 +1715,7 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ] && grep -qm1 "^externals:"
 	if [ -n "$nolib_exclude" ]; then
 		end_group "externals"
 		echo "Waiting for externals to finish..."
+		echo
 		for i in ${!external_pids[*]}; do
 			if ! wait "${external_pids[i]}"; then
 				_external_error=1
