@@ -27,13 +27,13 @@
 #
 # For more information, please refer to <http://unlicense.org/>
 
-startGroup() { echo "$1"; }
-endGroup() { echo; }
+start_group() { echo "$1"; }
+end_group() { echo; }
 
 # add some travis checks so we don't need to do it in the yaml file
 if [ -n "$TRAVIS" ]; then
-	startGroup() { echo -en "travis_fold:start:$2\\r\033[0K$1\\r"; }
-	endGroup() { echo -en "travis_fold:end:$1\\r\033[0K"; }
+	start_group() { echo -en "travis_fold:start:$2\\r\033[0K$1\\r"; }
+	end_group() { echo -en "travis_fold:end:$1\\r\033[0K"; }
 	# don't need to run the packager for pull requests
 	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
 		echo "Not packaging pull request."
@@ -50,8 +50,8 @@ if [ -n "$TRAVIS" ]; then
 fi
 # actions check to prevent duplicate builds
 if [[ -n "$GITHUB_ACTIONS" ]]; then
-	startGroup() { echo "##[group]$1"; }
-	endGroup() { echo "##[endgroup]"; }
+	start_group() { echo "##[group]$1"; }
+	end_group() { echo "##[end_group]"; }
 	if [[ "$GITHUB_REF" == "refs/heads"* && -d "$GITHUB_WORKSPACE/.git" ]]; then
 		GITHUB_TAG=$( git -C "$GITHUB_WORKSPACE" tag --points-at HEAD )
 		if [ -n "$GITHUB_TAG" ]; then
@@ -1287,7 +1287,7 @@ copy_directory_tree() {
 	_cdt_destdir=$2
 
 	if [ -z "$_external_dir" ]; then
-		startGroup "Copying files into ${_cdt_destdir#$topdir/}:" "copy"
+		start_group "Copying files into ${_cdt_destdir#$topdir/}:" "copy"
 	else
 		echo "Copying files into ${_cdt_destdir#$topdir/}:"
 	fi
@@ -1394,7 +1394,7 @@ copy_directory_tree() {
 		fi
 	done
 	if [ -z "$_external_dir" ]; then
-		endGroup "copy"
+		end_group "copy"
 	else
 		echo
 	fi
@@ -1641,7 +1641,7 @@ kill_externals() {
 trap kill_externals INT
 
 if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ] && grep -qm1 "^externals:" "$pkgmeta_file"; then
-	startGroup "Fetching externals" "externals"
+	start_group "Fetching externals" "externals"
 	yaml_eof=
 	while [ -z "$yaml_eof" ]; do
 		IFS='' read -r yaml_line || yaml_eof="true"
@@ -1720,7 +1720,7 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ] && grep -qm1 "^externals:"
 		fi
 		echo
 	fi
-	endGroup "externals"
+	end_group "externals"
 fi
 
 # Restore the signal handlers
@@ -1737,11 +1737,11 @@ fi
 # Create a changelog in the package directory if the source directory does
 # not contain a manual changelog.
 if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
-	startGroup "Using manual changelog at $changelog" "changelog"
+	start_group "Using manual changelog at $changelog" "changelog"
 	echo
 	head -n7 "$topdir/$changelog"
 	[ "$( wc -l < "$topdir/$changelog" )" -gt 7 ] && echo "..."
-	endGroup "changelog"
+	end_group "changelog"
 
 	if [ "$changelog_markup" = "markdown" ]; then
 		# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
@@ -1792,7 +1792,7 @@ else
 	changelog="CHANGELOG.md"
 	changelog_markup="markdown"
 
-	startGroup "Generating changelog of commits into $changelog" "changelog"
+	start_group "Generating changelog of commits into $changelog" "changelog"
 
 	if [ "$repository_type" = "git" ]; then
 		changelog_url=
@@ -1954,7 +1954,7 @@ else
 
 	echo
 	echo "$(<"$pkgdir/$changelog")"
-	endGroup "changelog"
+	end_group "changelog"
 fi
 
 ###
@@ -2045,7 +2045,7 @@ if [ -z "$skip_zipfile" ]; then
 		nolib_archive=
 	fi
 
-	startGroup "Creating archive: $archive_name" "archive"
+	start_group "Creating archive: $archive_name" "archive"
 
 	if [ -f "$archive" ]; then
 		rm -f "$archive"
@@ -2056,11 +2056,11 @@ if [ -z "$skip_zipfile" ]; then
 		exit 1
 	fi
 
-	endGroup "archive"
+	end_group "archive"
 
 	# Create nolib version of the zipfile
 	if [ -n "$enable_nolib_creation" ] && [ -z "$nolib" ] && [ -n "$nolib_exclude" ]; then
-		startGroup "Creating no-lib archive: $nolib_archive_name" "archive.nolib"
+		start_group "Creating no-lib archive: $nolib_archive_name" "archive.nolib"
 
 		# run the nolib_filter
 		find "$pkgdir" -type f \( -name "*.xml" -o -name "*.toc" \) -print | while read -r file; do
@@ -2084,7 +2084,7 @@ if [ -z "$skip_zipfile" ]; then
 			exit_code=1
 		fi
 
-		endGroup "archive.nolib"
+		end_group "archive.nolib"
 	fi
 
 	###
