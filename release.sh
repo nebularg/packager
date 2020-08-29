@@ -2396,11 +2396,7 @@ fi
 
 # All done.
 
-start_group "" "end"
-end_group "end"
-
-echo
-echo "Packaging complete."
-echo
+start_group "Packaging complete." "complete"
+end_group "complete"
 
 exit $exit_code
