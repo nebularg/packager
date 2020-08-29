@@ -17,7 +17,7 @@ runs:
   steps:
     - run: pandoc -v &>/dev/null || {[ -n "$WOWI_API_TOKEN" ] && curl -sL $(curl -s https://api.github.com/repos/jgm/pandoc/releases/latest | jq -r '.assets[] | select(.content_type == "application/x-gzip") | .browser_download_url') | sudo tar xzf - --strip-components=1 -C /usr/local &>/dev/null;} || true
       shell: bash
-    - run: cd ${{ inputs.path }}
+    - run: cd asd${{ inputs.path }}
       shell: bash
     - run: $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
       shell: bash
