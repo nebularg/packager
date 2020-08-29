@@ -1616,10 +1616,13 @@ process_external() {
 
 		echo "Fetching external: $external_dir"
 		(
-			output_file="$releasedir/.${RANDOM}.externalout"
+			id=$RANDOM
+			output_file="$releasedir/.$id.externalout"
 			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_extra_type" &> "$output_file"
 			status=$?
-			echo "$(<"$output_file")"
+			[ "$status" -eq 0 ] && start_group "$( head -n1 "$output_file" )" "external.$id"
+			tail -n+2 "$output_file"
+			[ "$status" -eq 0 ] && end_group "external.$id"
 			rm -f "$output_file" 2>/dev/null
 			exit $status
 		) &
@@ -1706,7 +1709,7 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ] && grep -qm1 "^externals:"
 	process_external
 
 	if [ -n "$nolib_exclude" ]; then
-		echo
+		end_group "externals"
 		echo "Waiting for externals to finish..."
 		for i in ${!external_pids[*]}; do
 			if ! wait "${external_pids[i]}"; then
@@ -1720,7 +1723,6 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ] && grep -qm1 "^externals:"
 		fi
 		echo
 	fi
-	end_group "externals"
 fi
 
 # Restore the signal handlers
