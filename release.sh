@@ -32,8 +32,8 @@ end_group() { echo; }
 
 # add some travis checks so we don't need to do it in the yaml file
 if [ -n "$TRAVIS" ]; then
-	start_group() { echo -en "travis_fold:start:$2\\r\033[0K$1\\n"; }
-	end_group() { echo -en "travis_fold:end:$1\\r\033[0K\\n"; }
+	# start_group() { echo -en "travis_fold:start:$2\\r\033[0K$1\\n"; }
+	# end_group() { echo -en "travis_fold:end:$1\\r\033[0K\\n"; }
 	# don't need to run the packager for pull requests
 	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
 		echo "Not packaging pull request."
