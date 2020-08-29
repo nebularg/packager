@@ -1442,7 +1442,6 @@ checkout_external() {
 
 	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
 	mkdir -p "$_cqe_checkout_dir"
-	echo
 	if [ "$_external_type" = "git" ]; then
 		if [ -z "$_external_tag" ]; then
 			echo "Fetching latest version of external $_external_uri"
@@ -1620,6 +1619,7 @@ process_external() {
 			output_file="$releasedir/.$id.externalout"
 			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_extra_type" &> "$output_file"
 			status=$?
+			echo
 			[ "$status" -eq 0 ] && start_group "$( head -n1 "$output_file" )" "external.$id"
 			tail -n+2 "$output_file"
 			[ "$status" -eq 0 ] && end_group "external.$id"
