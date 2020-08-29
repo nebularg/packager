@@ -1619,7 +1619,6 @@ process_external() {
 			output_file="$releasedir/.$id.externalout"
 			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_extra_type" &> "$output_file"
 			status=$?
-			echo
 			[ "$status" -eq 0 ] && start_group "$( head -n1 "$output_file" )" "external.$id"
 			tail -n+2 "$output_file"
 			[ "$status" -eq 0 ] && end_group "external.$id"
