@@ -1395,8 +1395,6 @@ copy_directory_tree() {
 	done
 	if [ -z "$_external_dir" ]; then
 		end_group "copy"
-	else
-		echo
 	fi
 }
 
