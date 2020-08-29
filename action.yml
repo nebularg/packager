@@ -15,6 +15,8 @@ inputs:
 runs:
   using: composite
   steps:
+    - run: pandoc -v &>/dev/null || curl -sL $(curl -s https://api.github.com/repos/jgm/pandoc/releases/latest | jq -r '.assets[] | select(.content_type == "application/x-gzip") | .browser_download_url') | tar xzf - --strip-components 1 -C ~/.local; pandoc -v
+      shell: bash
     - run: cd ${{ inputs.path }}
       shell: bash
     - run: $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
