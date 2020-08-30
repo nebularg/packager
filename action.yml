@@ -6,8 +6,6 @@ branding:
 inputs:
   args:
     description: 'Command-line arguments'
-    required: false
-    default: ''
 runs:
   using: composite
   steps:
