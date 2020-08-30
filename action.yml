@@ -12,7 +12,7 @@ runs:
   using: composite
   steps:
     # install pandoc if appropriate
-    - run: [ -n "$WOWI_API_TOKEN" ] && sudo apt-get install -yq pandoc &>/dev/null
+    - run: test -n "$WOWI_API_TOKEN" && sudo apt-get install -yq pandoc &>/dev/null || true
       shell: bash
     # curl is scary
     - run: $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
