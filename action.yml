@@ -4,10 +4,6 @@ branding:
   icon: package
   color: yellow
 inputs:
-  path:
-    description: 'Top-level directory of the addon'
-    required: false
-    default: ${{ github.workspace }}
   args:
     description: 'Command-line arguments'
     required: false
@@ -15,11 +11,9 @@ inputs:
 runs:
   using: composite
   steps:
-    # install pandoc if appropriate. this keeps parity with the docker action (but you should probably apt install it)
-    - run: pandoc -v &>/dev/null || { [ -n "$WOWI_API_TOKEN" ] && curl -sfL "$(curl -sf https://api.github.com/repos/jgm/pandoc/releases/latest | jq -r '.assets[] | select(.content_type == "application/x-gzip") | .browser_download_url' 2>/dev/null)" | sudo tar -xzf - --strip=1 -C /usr/local &>/dev/null; } || true
-      shell: bash
-    - run: echo "where am i? $(pwd)"
+    # install pandoc if appropriate
+    - run: [ -n "$WOWI_API_TOKEN" ] && sudo apt-get install -yq pandoc &>/dev/null
       shell: bash
     # curl is scary
-    - run: cd ${{ inputs.path }} && $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
+    - run: $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
       shell: bash
