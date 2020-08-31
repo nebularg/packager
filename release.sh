@@ -1629,8 +1629,8 @@ process_external() {
 				tail -n+2 "$output_file"
 				end_group "external.$id"
 			else
+				awk -v r="\033[01;31m" -v n="\033[0m" '{printf r$0n "\n"}' "$output_file"
 				echo
-				echo -e "\033[1;31m$(<"$output_file")\033[0m"
 			fi
 			rm -f "$output_file" 2>/dev/null
 			exit $status
