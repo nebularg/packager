@@ -1630,7 +1630,7 @@ process_external() {
 				end_group "external.$id"
 			else
 				echo
-				echo "$(<"$output_file")"
+				echo -e "\033[1;31m$(<"$output_file")\033[0m"
 			fi
 			rm -f "$output_file" 2>/dev/null
 			exit $status
