@@ -231,8 +231,8 @@ if [ -n "$TRAVIS" ]; then
 			exit 0
 		fi
 	fi
-	# start_group() { echo -en "travis_fold:start:$2\\r\033[0K$1\\n"; }
-	# end_group() { echo -en "travis_fold:end:$1\\r\033[0K\\n"; }
+	start_group() { echo -en "travis_fold:start:$2\\r\033[0K$1\\n"; }
+	end_group() { echo -en "travis_fold:end:$1\\r\033[0K\\n"; }
 fi
 
 # actions check to prevent duplicate builds
@@ -1728,7 +1728,6 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 		if [ -n "$_external_error" ]; then
 			echo
 			echo "There was an error fetching externals :(" >&2
-			echo
 			exit 1
 		fi
 	fi
@@ -2057,6 +2056,7 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	start_group "Creating archive: $archive_name" "archive"
+
 	if [ -f "$archive" ]; then
 		rm -f "$archive"
 	fi
@@ -2065,6 +2065,7 @@ if [ -z "$skip_zipfile" ]; then
 	if [ ! -f "$archive" ]; then
 		exit 1
 	fi
+
 	end_group "archive"
 
 	# Create nolib version of the zipfile
