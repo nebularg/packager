@@ -1728,6 +1728,7 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 		if [ -n "$_external_error" ]; then
 			echo
 			echo "There was an error fetching externals :(" >&2
+			echo
 			exit 1
 		fi
 	fi
