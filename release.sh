@@ -231,8 +231,15 @@ if [ -n "$TRAVIS" ]; then
 			exit 0
 		fi
 	fi
-	start_group() { echo -en "travis_fold:start:$2\\r\033[0K$1\\n"; }
-	end_group() { echo -en "travis_fold:end:$1\\r\033[0K\\n"; }
+	start_group() {
+		travis_fold "start" "$2"
+		travis_time_start
+		echo "$1"
+	}
+	end_group() {
+		travis_time_finish
+		travis_fold "end" "$1"
+	}
 fi
 
 # actions check to prevent duplicate builds
