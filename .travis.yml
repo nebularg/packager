@@ -4,7 +4,10 @@ branches:
   only:
     - actionfun
 
-before_script: git clone https://github.com/nebularg/PackagerTest.git PackagerTest
+before_script: |
+  git clone https://github.com/nebularg/PackagerTest.git PackagerTest
+  git -C PackagerTest checkout -qf e29bbd826b3889ee41b025ef4a7b47edd06ea96f
+
 script: ./release.sh -t PackagerTest -ldp 1
 
 notifications:
