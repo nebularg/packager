@@ -233,15 +233,15 @@ if [ -n "$TRAVIS" ]; then
 	fi
 	start_group() {
 		echo -en "travis_fold:start:$2\\r\033[0K"
-		export RELEASE_TIMER_ID="$(printf %08x $((RANDOM * RANDOM)))"
-		export RELEASE_TIMER_START_TIME="$(date -u +%s%N)"
-		echo -en "travis_time:start:$RELEASE_TIMER_ID\\r\033[0K"
+		# export RELEASE_TIMER_ID="$(printf %08x $((RANDOM * RANDOM)))"
+		# export RELEASE_TIMER_START_TIME="$(date -u +%s%N)"
+		# echo -en "travis_time:start:$RELEASE_TIMER_ID\\r\033[0K"
 		echo "$1"
 	}
 	end_group() {
-		local travis_timer_end_time="$(date -u +%s%N)"
-		local duration="$((travis_timer_end_time - RELEASE_TIMER_START_TIME))"
-		echo -en "\\ntravis_time:end:${RELEASE_TIMER_ID}:start=${RELEASE_TIMER_START_TIME},finish=${travis_timer_end_time},duration=${duration}\\r\033[0K"
+		# local travis_timer_end_time="$(date -u +%s%N)"
+		# local duration="$((travis_timer_end_time - RELEASE_TIMER_START_TIME))"
+		# echo -en "\\ntravis_time:end:${RELEASE_TIMER_ID}:start=${RELEASE_TIMER_START_TIME},finish=${travis_timer_end_time},duration=${duration}\\r\033[0K"
 		echo -en "travis_fold:end:$1\\r\033[0K"
 	}
 fi
