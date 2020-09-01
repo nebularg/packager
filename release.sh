@@ -232,13 +232,24 @@ if [ -n "$TRAVIS" ]; then
 		fi
 	fi
 	start_group() {
-		travis_fold "start" "$2"
-		travis_time_start
+		echo -en "travis_fold:start:$2\\r\033[0K"
+		export RELEASE_TIMER_ID="$(printf %08x $((RANDOM * RANDOM)))"
+		export RELEASE_TIMER_START_TIME="$(travis_nanoseconds)"
+		echo -en "travis_time:start:$RELEASE_TIMER_ID\\r\033[0K"
 		echo "$1"
 	}
 	end_group() {
-		travis_time_finish
-		travis_fold "end" "$1"
+		local travis_timer_end_time, duration
+		if hash gdate &>/dev/null; then
+			travis_timer_end_time="$(gdate -u +%s%N)"
+		elif [[ "${OSTYPE,,}" == *"darwin"* ]]; then
+			travis_timer_end_time="$(date -u +%s000000000)"
+		else
+			travis_timer_end_time="$(date -u +%s%N)"
+		fi
+		duration="$((travis_timer_end_time - RELEASE_TIMER_START_TIME))"
+		echo -en "\\ntravis_time:end:${RELEASE_TIMER_ID}:start=${RELEASE_TIMER_START_TIME},finish=${travis_timer_end_time},duration=${duration}\\r\033[0K"
+		echo -en "travis_fold:end:$1\\r\033[0K"
 	}
 fi
 
