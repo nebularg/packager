@@ -4,6 +4,7 @@ on: push
 
 env:
   CF_API_KEY: ${{ secrets.CF_API_KEY }}
+  WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
 
 jobs:
   action_test:
