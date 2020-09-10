@@ -19,4 +19,4 @@ jobs:
     - name: Run action
       uses: nebularg/packager@actionfun
       with:
-        args: -ldp1w1
+        args: -ld -p1 -w1
