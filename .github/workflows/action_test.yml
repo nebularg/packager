@@ -7,7 +7,7 @@ env:
   WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
 
 jobs:
-  action_test:
+  action_test1:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,3 +21,19 @@ jobs:
       uses: nebularg/packager@actionfun
       with:
         args: -ld -p1 -w1
+
+  action_test2:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout test addon
+      uses: actions/checkout@v2
+      with:
+        repository: BigWigsMods/BigWigs
+        fetch-depth: 0
+
+    - name: Run action
+      uses: nebularg/packager@actionfun
+      with:
+        args: -ld -p1 -w1
+        pandoc: false
