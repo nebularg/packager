@@ -15,9 +15,7 @@ runs:
   using: composite
   steps:
     # install pandoc if appropriate
-    - run: sudo apt-get install -yq pandoc &>/dev/null && echo -e "##[group]pandoc version\n[command]pandoc --version\n$(pandoc --version)\n##[endgroup]"
-      shell: bash
-    - run: echo "wowi:${WOWI_API_TOKEN:+set}; pandoc:${{ inputs.pandoc }};"
+    - run: '[[ -n "$WOWI_API_TOKEN" && "${{ inputs.pandoc }}" == "true" ]] && sudo apt-get install -yq pandoc &>/dev/null && echo -e "##[group]pandoc version\n[command]pandoc --version\n$(pandoc --version)\n##[endgroup]" || true'
       shell: bash
     - run: $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
       shell: bash
