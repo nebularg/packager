@@ -15,6 +15,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: BigWigsMods/BigWigs
+        fetch-depth: 0
 
     - name: Run action
       uses: nebularg/packager@actionfun
