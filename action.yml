@@ -5,12 +5,17 @@ branding:
   color: yellow
 inputs:
   args:
-    description: Command-line arguments. See https://github.com/BigWigsMods/packager#usage
+    description: 'Command-line arguments. See https://github.com/BigWigsMods/packager#usage'
+    required: false
+  pandoc:
+    description: 'Install pandoc before packaging if uploading to WoWInterface.'
+    required: false
+    default: true
 runs:
   using: composite
   steps:
     # install pandoc if appropriate
-    - run: test -n "$WOWI_API_TOKEN" && sudo apt-get install -yq pandoc &>/dev/null || true
+    - run: '[[ -n "$WOWI_API_TOKEN" && "$INPUT_PANDOC" == "true" ]] && sudo apt-get install -yq pandoc &>/dev/null && echo -e "##[group]Getting pandoc version\n[command]pandoc --version\n$(pandoc --version)\n##[endgroup]\n" || true'
       shell: bash
     - run: $GITHUB_ACTION_PATH/release.sh ${{ inputs.args }}
       shell: bash
