@@ -255,13 +255,13 @@ fi
 # Check for GitHub Actions
 if [ -n "$GITHUB_ACTIONS" ]; then
 	# Prevent duplicate builds
-	if [[ "$GITHUB_REF" == "refs/heads"* ]]; then
-		check_tag=$( git -C "$topdir" tag --points-at HEAD )
-		if [ -n "$check_tag" ]; then
-			echo "Found future tag \"${check_tag}\", not packaging."
-			exit 0
-		fi
-	fi
+	# if [[ "$GITHUB_REF" == "refs/heads"* ]]; then
+	# 	check_tag=$( git -C "$topdir" tag --points-at HEAD )
+	# 	if [ -n "$check_tag" ]; then
+	# 		echo "Found future tag \"${check_tag}\", not packaging."
+	# 		exit 0
+	# 	fi
+	# fi
 	start_group() { echo "##[group]$1"; }
 	end_group() { echo "##[endgroup]"; }
 fi
