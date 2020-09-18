@@ -144,22 +144,26 @@ while getopts ":celLzusop:dw:r:t:g:m:" opt; do
 		skip_zipfile="true"
 		;;
 	g)
-		# Set version (x.y.z)
-		IFS=',' read -ra V <<< "$OPTARG"
-		for i in "${V[@]}"; do
-			if [[ ! "$i" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)[a-z]?$ ]]; then
-				echo "Invalid argument for option \"-g\" ($OPTARG)" >&2
-				usage
-				exit 1
-			fi
-			if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
-				classic="true"
-				toc_version=$( printf "%d%02d%02d" ${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]} )
-			fi
-		done
-		# I should probably check to make sure people aren't mixing
-		# classic and retail on the same build (curse no like) TODO:?
-		game_version="$OPTARG"
+		# shortcut for classic
+		if [ "$OPTARG" = "classic" ]; then
+			classic="true"
+			# game_version from toc
+		else
+			# Set version (x.y.z)
+			readarray -td, <<< "$OPTARG"
+			for i in ${MAPFILE[*]}; do
+				if [[ ! "$i" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)[a-z]?$ ]]; then
+					echo "Invalid argument for option \"-g\" ($i)" >&2
+					usage
+					exit 1
+				fi
+				if [[ ${BASH_REMATCH[1]} == "1" && ${BASH_REMATCH[2]} == "13" ]]; then
+					classic="true"
+					toc_version=$( printf "%d%02d%02d" ${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]} )
+				fi
+			done
+			game_version="$OPTARG"
+		fi
 		;;
 	m)
 		# Set the pkgmeta file.
@@ -208,46 +212,49 @@ if [ -z "$topdir" ]; then
 	fi
 fi
 
+# Handle folding sections in CI logs
 start_group() { echo "$1"; }
 end_group() { echo; }
 
-# add some travis checks so we don't need to do it in the yaml file
+# Check for Travis CI
 if [ -n "$TRAVIS" ]; then
-	# don't need to run the packager for pull requests
+	# Don't run the packager for pull requests
 	if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
 		echo "Not packaging pull request."
 		exit 0
 	fi
 	if [ -z "$TRAVIS_TAG" ]; then
-		# don't need to run the packager if there is a tag pending
+		# Don't run the packager if there is a tag pending
 		check_tag=$( git -C "$topdir" tag --points-at HEAD )
 		if [ -n "$check_tag" ]; then
 			echo "Found future tag \"${check_tag}\", not packaging."
 			exit 0
 		fi
-		# only want to package master, classic, or a tag
-		# if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ] && [ "$TRAVIS_BRANCH" != "develop" ]; then
-		# 	echo "Not packaging \"${TRAVIS_BRANCH}\"."
-		# 	exit 0
-		# fi
+		# Only package master, classic, or develop
+		if [ "$TRAVIS_BRANCH" != "master" ] && [ "$TRAVIS_BRANCH" != "classic" ] && [ "$TRAVIS_BRANCH" != "develop" ]; then
+			echo "Not packaging \"${TRAVIS_BRANCH}\"."
+			exit 0
+		fi
 	fi
+	# https://github.com/travis-ci/travis-build/tree/master/lib/travis/build/bash
 	start_group() {
 		echo -en "travis_fold:start:$2\\r\033[0K"
-		# RELEASE_TIMER_ID="$(printf %08x $((RANDOM * RANDOM)))"
-		# RELEASE_TIMER_START_TIME="$(date -u +%s%N)"
-		# echo -en "travis_time:start:${RELEASE_TIMER_ID}\\r\033[0K"
+		# release_timer_id="$(printf %08x $((RANDOM * RANDOM)))"
+		# release_timer_start_time="$(date -u +%s%N)"
+		# echo -en "travis_time:start:${release_timer_id}\\r\033[0K"
 		echo "$1"
 	}
 	end_group() {
 		# local release_timer_end_time="$(date -u +%s%N)"
-		# local duration=$((release_timer_end_time - RELEASE_TIMER_START_TIME))
-		# echo -en "\\ntravis_time:end:${RELEASE_TIMER_ID}:start=${RELEASE_TIMER_START_TIME},finish=${release_timer_end_time},duration=${duration}\\r\033[0K"
+		# local duration=$((release_timer_end_time - release_timer_start_time))
+		# echo -en "\\ntravis_time:end:${release_timer_id}:start=${release_timer_start_time},finish=${release_timer_end_time},duration=${duration}\\r\033[0K"
 		echo -en "travis_fold:end:$1\\r\033[0K"
 	}
 fi
 
-# actions check to prevent duplicate builds
+# Check for GitHub Actions
 if [ -n "$GITHUB_ACTIONS" ]; then
+	# Prevent duplicate builds
 	if [[ "$GITHUB_REF" == "refs/heads"* ]]; then
 		check_tag=$( git -C "$topdir" tag --points-at HEAD )
 		if [ -n "$check_tag" ]; then
@@ -262,6 +269,7 @@ unset check_tag
 
 # Load secrets
 if [ -f "$topdir/.env" ]; then
+	# shellcheck disable=1090
 	. "$topdir/.env"
 elif [ -f ".env" ]; then
 	. ".env"
@@ -350,7 +358,7 @@ si_file_timestamp= # Turns into the last changed date (by UTC) of the file in PO
 strtotime() {
 	local value="$1" # datetime string
 	local format="$2" # strptime string
-	if [[ "${OSTYPE,,}" == *"darwin"* ]]; then # osx
+	if [[ "${OSTYPE,,}" == *"darwin"* ]]; then # bsd
 		date -j -f "$format" "$value" "+%s" 2>/dev/null
 	else # gnu
 		date -d "$value" +%s 2>/dev/null
@@ -370,8 +378,8 @@ set_info_git() {
 	si_project_abbreviated_hash=$( git -C "$si_repo_dir" show --no-patch --abbrev=7 --format="%h" 2>/dev/null )
 	si_project_author=$( git -C "$si_repo_dir" show --no-patch --format="%an" 2>/dev/null )
 	si_project_timestamp=$( git -C "$si_repo_dir" show --no-patch --format="%at" 2>/dev/null )
-	si_project_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
-	si_project_date_integer=$( TZ= printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
+	si_project_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
+	si_project_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
 	# XXX --depth limits rev-list :\ [ ! -s "$(git rev-parse --git-dir)/shallow" ] || git fetch --unshallow --no-tags
 	si_project_revision=$( git -C "$si_repo_dir" rev-list --count "$si_project_hash" 2>/dev/null )
 
@@ -435,7 +443,7 @@ set_info_svn() {
 				si_project_revision=$( svn info "$_si_root/tags/$si_tag" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF; exit }' )
 			else
 				# Set $si_project_revision to the highest revision of the project at the checkout path
-				si_project_revision=$( svn info --recursive "$si_repo_dir" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF }' | sort -nr | head -1 )
+				si_project_revision=$( svn info --recursive "$si_repo_dir" 2>/dev/null | awk '/^Last Changed Rev:/ { print $NF }' | sort -nr | head -n1 )
 			fi
 			;;
 		esac
@@ -458,8 +466,8 @@ set_info_svn() {
 		si_project_author=$( awk '/^Last Changed Author:/ { print $0; exit }' < "$_si_svninfo" | cut -d" " -f4- )
 		_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5; exit }' < "$_si_svninfo" )
 		si_project_timestamp=$( strtotime "$_si_timestamp" "%F %T" )
-		si_project_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
-		si_project_date_integer=$( TZ= printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
+		si_project_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
+		si_project_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
 		# SVN repositories have no project hash.
 		si_project_hash=
 		si_project_abbreviated_hash=
@@ -481,8 +489,8 @@ set_info_hg() {
 	si_project_abbreviated_hash=$( hg --cwd "$si_repo_dir" log -r . --template '{node|short}' 2>/dev/null )
 	si_project_author=$( hg --cwd "$si_repo_dir" log -r . --template '{author}' 2>/dev/null )
 	si_project_timestamp=$( hg --cwd "$si_repo_dir" log -r . --template '{date}' 2>/dev/null | cut -d. -f1 )
-	si_project_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
-	si_project_date_integer=$( TZ= printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
+	si_project_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_project_timestamp" )
+	si_project_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_project_timestamp" )
 	si_project_revision=$( hg --cwd "$si_repo_dir" log -r . --template '{rev}' 2>/dev/null )
 
 	# Get tag info
@@ -513,8 +521,8 @@ set_info_file() {
 		si_file_abbreviated_hash=$( git -C "$si_repo_dir" log --max-count=1 --abbrev=7 --format="%h" "$_si_file" 2>/dev/null )
 		si_file_author=$( git -C "$si_repo_dir" log --max-count=1 --format="%an" "$_si_file" 2>/dev/null )
 		si_file_timestamp=$( git -C "$si_repo_dir" log --max-count=1 --format="%at" "$_si_file" 2>/dev/null )
-		si_file_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
-		si_file_date_integer=$( TZ= printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
+		si_file_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
+		si_file_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
 		si_file_revision=$( git -C "$si_repo_dir" rev-list --count "$si_file_hash" 2>/dev/null ) # XXX checkout depth affects rev-list, see set_info_git
 	elif [ "$si_repo_type" = "svn" ]; then
 		_si_file="$1"
@@ -527,8 +535,8 @@ set_info_file() {
 			si_file_author=$( awk '/^Last Changed Author:/ { print $0; exit }' < "$_sif_svninfo" | cut -d" " -f4- )
 			_si_timestamp=$( awk '/^Last Changed Date:/ { print $4,$5,$6; exit }' < "$_sif_svninfo" )
 			si_file_timestamp=$( strtotime "$_si_timestamp" "%F %T %z" )
-			si_file_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
-			si_file_date_integer=$( TZ= printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
+			si_file_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
+			si_file_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
 			# SVN repositories have no project hash.
 			si_file_hash=
 			si_file_abbreviated_hash=
@@ -542,8 +550,8 @@ set_info_file() {
 		si_file_abbreviated_hash=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{node|short}' "$_si_file" 2>/dev/null )
 		si_file_author=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{author}' "$_si_file" 2>/dev/null )
 		si_file_timestamp=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{date}' "$_si_file" 2>/dev/null | cut -d. -f1 )
-		si_file_date_iso=$( TZ= printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
-		si_file_date_integer=$( TZ= printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
+		si_file_date_iso=$( TZ='' printf "%(%Y-%m-%dT%H:%M:%SZ)T" "$si_file_timestamp" )
+		si_file_date_integer=$( TZ='' printf "%(%Y%m%d%H%M%S)T" "$si_file_timestamp" )
 		si_file_revision=$( hg --cwd "$si_repo_dir" log --limit 1 --template '{rev}' "$_si_file" 2>/dev/null )
 	fi
 }
@@ -581,10 +589,11 @@ match_pattern() {
 	while [ -n "$_mp_list" ]; do
 		_mp_pattern=${_mp_list%%:*}
 		_mp_list=${_mp_list#*:}
+		# shellcheck disable=2254
 		case $_mp_file in
-		$_mp_pattern)
-			return 0
-			;;
+			$_mp_pattern)
+				return 0
+				;;
 		esac
 	done
 	return 1
@@ -623,6 +632,7 @@ contents=
 nolib_exclude=
 wowi_gen_changelog="true"
 wowi_archive="true"
+wowi_convert_changelog="true"
 declare -A relations=()
 
 parse_ignore() {
@@ -659,6 +669,8 @@ parse_ignore() {
 				elif [ ! -f "$checkpath/$pattern" ]; then
 					# doesn't exist so match both a file and a path
 					pattern="$copypath$pattern:$copypath$pattern/*"
+				else
+					pattern="$copypath$pattern"
 				fi
 				if [ -z "$ignore" ]; then
 					ignore="$pattern"
@@ -700,6 +712,11 @@ if [ -f "$pkgmeta_file" ]; then
 			wowi-create-changelog)
 				if [ "$yaml_value" = "no" ]; then
 					wowi_gen_changelog=
+				fi
+				;;
+			wowi-convert-changelog)
+				if [ "$yaml_value" = "no" ]; then
+					wowi_convert_changelog=
 				fi
 				;;
 			wowi-archive-previous)
@@ -816,7 +833,7 @@ fi
 # TOC file processing.
 tocfile=$(
 	cd "$topdir" || exit
-	filename=$( ls *.toc -1 2>/dev/null | head -n1 )
+	filename=$( ls ./*.toc -1 2>/dev/null | head -n1 )
 	if [[ -z "$filename" && -n "$package" ]]; then
 		# Handle having the core addon in a sub dir, which people have starting doing
 		# for some reason. Tons of caveats, just make the base dir your base addon people!
@@ -840,9 +857,12 @@ if [ -z "$package" ]; then
 fi
 
 # Get the interface version for setting upload version.
-toc_file=$( sed -e '1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
+toc_file=$( sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r//g' "$topdir/$tocfile" ) # go away bom, crlf
+if [ -n "$classic" ] && [ -z "$toc_version" ] && [ -z "$game_version" ]; then
+	toc_version=$( echo "$toc_file" | awk '/## Interface:[[:space:]]*113/ { print $NF; exit }' )
+fi
 if [ -z "$toc_version" ]; then
-	toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF }' )
+	toc_version=$( echo "$toc_file" | awk '/^## Interface:/ { print $NF; exit }' )
 	if [[ "$toc_version" == "113"* ]]; then
 		classic="true"
 	fi
@@ -852,13 +872,13 @@ if [ -z "$game_version" ]; then
 fi
 
 # Get the title of the project for using in the changelog.
-project=$( echo "$toc_file" | awk '/^## Title:/' | sed -e 's/## Title\s*:\s*\(.*\)\s*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
+project=$( echo "$toc_file" | awk '/^## Title:/ { print $0; exit }' | sed -e 's/## Title[[:space:]]*:[[:space:]]*\(.*\)[[:space:]]*/\1/' -e 's/|c[0-9A-Fa-f]\{8\}//g' -e 's/|r//g' )
 # Grab CurseForge ID and WoWI ID from the TOC file if not set by the script.
 if [ -z "$slug" ]; then
-	slug=$( echo "$toc_file" | awk '/^## X-Curse-Project-ID:/ { print $NF }' )
+	slug=$( echo "$toc_file" | awk '/^## X-Curse-Project-ID:/ { print $NF; exit }' )
 fi
 if [ -z "$addonid" ]; then
-	addonid=$( echo "$toc_file" | awk '/^## X-WoWI-ID:/ { print $NF }' )
+	addonid=$( echo "$toc_file" | awk '/^## X-WoWI-ID:/ { print $NF; exit }' )
 fi
 unset toc_file
 
@@ -916,7 +936,7 @@ contents="$package"
 ###
 
 # Filter for simple repository keyword replacement.
-simple_filter() {
+vcs_filter() {
 	sed \
 		-e "s/@project-revision@/$si_project_revision/g" \
 		-e "s/@project-hash@/$si_project_hash/g" \
@@ -1287,17 +1307,18 @@ copy_directory_tree() {
 	_cdt_classic=
 	OPTIND=1
 	while getopts :adi:lnpu:c _cdt_opt "$@"; do
+		# shellcheck disable=2220
 		case $_cdt_opt in
-		a)	_cdt_alpha="true" ;;
-		d)	_cdt_debug="true" ;;
-		i)	_cdt_ignored_patterns=$OPTARG ;;
-		l)	_cdt_localization="true"
-			set_localization_url
-			;;
-		n)	_cdt_nolib="true" ;;
-		p)	_cdt_do_not_package="true" ;;
-		u)	_cdt_unchanged_patterns=$OPTARG ;;
-		c)	_cdt_classic="true"
+			a)	_cdt_alpha="true" ;;
+			d)	_cdt_debug="true" ;;
+			i)	_cdt_ignored_patterns=$OPTARG ;;
+			l)	_cdt_localization="true"
+					set_localization_url
+					;;
+			n)	_cdt_nolib="true" ;;
+			p)	_cdt_do_not_package="true" ;;
+			u)	_cdt_unchanged_patterns=$OPTARG ;;
+			c)	_cdt_classic="true" ;;
 		esac
 	done
 	shift $((OPTIND - 1))
@@ -1306,7 +1327,7 @@ copy_directory_tree() {
 
 	if [ -z "$_external_dir" ]; then
 		start_group "Copying files into ${_cdt_destdir#$topdir/}:" "copy"
-	else
+	else # don't nest groups
 		echo "Copying files into ${_cdt_destdir#$topdir/}:"
 	fi
 	if [ ! -d "$_cdt_destdir" ]; then
@@ -1315,15 +1336,15 @@ copy_directory_tree() {
 	# Create a "find" command to list all of the files in the current directory, minus any ones we need to prune.
 	_cdt_find_cmd="find ."
 	# Prune everything that begins with a dot except for the current directory ".".
-	_cdt_find_cmd="$_cdt_find_cmd \( -name \".*\" -a \! -name \".\" \) -prune"
+	_cdt_find_cmd+=" \( -name \".*\" -a \! -name \".\" \) -prune"
 	# Prune the destination directory if it is a subdirectory of the source directory.
 	_cdt_dest_subdir=${_cdt_destdir#${_cdt_srcdir}/}
 	case $_cdt_dest_subdir in
-	/*)	;;
-	*)	_cdt_find_cmd="$_cdt_find_cmd -o -path \"./$_cdt_dest_subdir\" -prune" ;;
+		/*)	;;
+		*)	_cdt_find_cmd+=" -o -path \"./$_cdt_dest_subdir\" -prune" ;;
 	esac
 	# Print the filename, but suppress the current directory ".".
-	_cdt_find_cmd="$_cdt_find_cmd -o \! -name \".\" -print"
+	_cdt_find_cmd+=" -o \! -name \".\" -print"
 	( cd "$_cdt_srcdir" && eval "$_cdt_find_cmd" ) | while read -r file; do
 		file=${file#./}
 		if [ -f "$_cdt_srcdir/$file" ]; then
@@ -1353,60 +1374,45 @@ copy_directory_tree() {
 					mkdir -p "$_cdt_destdir/$dir"
 				fi
 				# Check if the file matches a pattern for keyword replacement.
-				skip_filter="true"
-				if match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
-					skip_filter=
-				fi
-				if [ -n "$skip_filter" ] || [ -n "$unchanged" ]; then
+				if [ -n "$unchanged" ] || ! match_pattern "$file" "*.lua:*.md:*.toc:*.txt:*.xml"; then
 					echo "  Copying: $file (unchanged)"
 					cp "$_cdt_srcdir/$file" "$_cdt_destdir/$dir"
 				else
-					# Set the filter for @localization@ replacement.
-					_cdt_localization_filter=cat
-					if [ -n "$_cdt_localization" ]; then
-						_cdt_localization_filter=localization_filter
-					fi
 					# Set the filters for replacement based on file extension.
-					_cdt_alpha_filter=cat
-					_cdt_debug_filter=cat
-					_cdt_nolib_filter=cat
-					_cdt_do_not_package_filter=cat
-					_cdt_classic_filter=cat
+					_cdt_filters="vcs_filter"
 					case $file in
-					*.lua)
-						[ -n "$_cdt_alpha" ] && _cdt_alpha_filter="lua_filter alpha"
-						[ -n "$_cdt_debug" ] && _cdt_debug_filter="lua_filter debug"
-						[ -n "$_cdt_do_not_package" ] && _cdt_do_not_package_filter="do_not_package_filter lua"
-						[ -n "$_cdt_classic" ] && _cdt_classic_filter="lua_filter retail"
-						;;
-					*.xml)
-						[ -n "$_cdt_alpha" ] && _cdt_alpha_filter="xml_filter alpha"
-						[ -n "$_cdt_debug" ] && _cdt_debug_filter="xml_filter debug"
-						[ -n "$_cdt_nolib" ] && _cdt_nolib_filter="xml_filter no-lib-strip"
-						[ -n "$_cdt_do_not_package" ] && _cdt_do_not_package_filter="do_not_package_filter xml"
-						[ -n "$_cdt_classic" ] && _cdt_classic_filter="xml_filter retail"
-						;;
-					*.toc)
-						_cdt_alpha_filter="toc_filter2 alpha ${_cdt_alpha:-0}"
-						_cdt_debug_filter="toc_filter2 debug ${_cdt_debug:-0}"
-						_cdt_nolib_filter="toc_filter2 no-lib-strip ${_cdt_nolib:-0}"
-						_cdt_do_not_package_filter="toc_filter2 do-not-package ${_cdt_do_not_package:-0}"
-						_cdt_classic_filter="toc_filter2 retail ${_cdt_classic:-0}"
-						;;
+						*.lua)
+							[ -n "$_cdt_alpha" ] && _cdt_filters+="|lua_filter alpha"
+							[ -n "$_cdt_debug" ] && _cdt_filters+="|lua_filter debug"
+							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter lua"
+							[ -n "$_cdt_classic" ] && _cdt_filters+="|lua_filter retail"
+							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
+							;;
+						*.xml)
+							[ -n "$_cdt_alpha" ] && _cdt_filters+="|xml_filter alpha"
+							[ -n "$_cdt_debug" ] && _cdt_filters+="|xml_filter debug"
+							[ -n "$_cdt_nolib" ] && _cdt_filters+="|xml_filter no-lib-strip"
+							[ -n "$_cdt_do_not_package" ] && _cdt_filters+="|do_not_package_filter xml"
+							[ -n "$_cdt_classic" ] && _cdt_filters+="|xml_filter retail"
+							;;
+						*.toc)
+							_cdt_filters+="|toc_filter2 alpha ${_cdt_alpha:-0}"
+							_cdt_filters+="|toc_filter2 debug ${_cdt_debug:-0}"
+							_cdt_filters+="|toc_filter2 no-lib-strip ${_cdt_nolib:-0}"
+							_cdt_filters+="|toc_filter2 do-not-package ${_cdt_do_not_package:-0}"
+							_cdt_filters+="|toc_filter2 retail ${_cdt_classic:-0}"
+							[ -n "$_cdt_localization" ] && _cdt_filters+="|localization_filter"
+							;;
 					esac
-					# As a side-effect, files that don't end in a newline silently have one added.
-					# POSIX does imply that text files must end in a newline.
+
+					# Set the filter for normalizing line endings.
+					_cdt_filters+="|line_ending_filter"
+
+					# Set version control values for the file.
 					set_info_file "$_cdt_srcdir/$file"
+
 					echo "  Copying: $file"
-					simple_filter < "$_cdt_srcdir/$file" \
-						| $_cdt_alpha_filter \
-						| $_cdt_debug_filter \
-						| $_cdt_nolib_filter \
-						| $_cdt_do_not_package_filter \
-						| $_cdt_classic_filter \
-						| $_cdt_localization_filter \
-						| line_ending_filter \
-						> "$_cdt_destdir/$file"
+					eval < "$_cdt_srcdir/$file" "$_cdt_filters" > "$_cdt_destdir/$file"
 				fi
 			fi
 		fi
@@ -1418,24 +1424,12 @@ copy_directory_tree() {
 
 if [ -z "$skip_copying" ]; then
 	cdt_args="-dp"
-	if [ -z "$alpha" ]; then
-		cdt_args="${cdt_args}a"
-	fi
-	if [ -z "$skip_localization" ]; then
-		cdt_args="${cdt_args}l"
-	fi
-	if [ -n "$nolib" ]; then
-		cdt_args="${cdt_args}n"
-	fi
-	if [ -n "$classic" ]; then
-		cdt_args="${cdt_args}c"
-	fi
-	if [ -n "$ignore" ]; then
-		cdt_args="$cdt_args -i \"$ignore\""
-	fi
-	if [ -n "$changelog" ]; then
-		cdt_args="$cdt_args -u \"$changelog\""
-	fi
+	[ -z "$alpha" ] && cdt_args+="a"
+	[ -z "$skip_localization" ] && cdt_args+="l"
+	[ -n "$nolib" ] && cdt_args+="n"
+	[ -n "$classic" ] && cdt_args+="c"
+	[ -n "$ignore" ] && cdt_args+=" -i \"$ignore\""
+	[ -n "$changelog" ] && cdt_args+=" -u \"$changelog\""
 	eval copy_directory_tree "$cdt_args" "\"$topdir\"" "\"$pkgdir\""
 fi
 
@@ -1453,8 +1447,9 @@ checkout_external() {
 	_external_uri=$2
 	_external_tag=$3
 	_external_type=$4
-	_external_slug=$5
-	_external_extra_type=$6
+	# shellcheck disable=2034
+	_external_slug=$5 # unused until we can easily fetch the project id
+	_external_checkout_type=$6
 
 	_cqe_checkout_dir="$pkgdir/$_external_dir/.checkout"
 	mkdir -p "$_cqe_checkout_dir"
@@ -1463,8 +1458,8 @@ checkout_external() {
 			echo "Fetching latest version of external $_external_uri"
 			git clone -q --depth 1 "$_external_uri" "$_cqe_checkout_dir" || return 1
 		elif [ "$_external_tag" != "latest" ]; then
-			echo "Fetching $_external_extra_type \"$_external_tag\" from external $_external_uri"
-			if [ "$_external_extra_type" = "commit" ]; then
+			echo "Fetching $_external_checkout_type \"$_external_tag\" from external $_external_uri"
+			if [ "$_external_checkout_type" = "commit" ]; then
 				git clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 				git -C "$_cqe_checkout_dir" checkout -q "$_external_tag" || return 1
 			else
@@ -1526,7 +1521,7 @@ checkout_external() {
 			echo "Fetching latest version of external $_external_uri"
 			hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
 		elif [ "$_external_tag" != "latest" ]; then
-			echo "Fetching $_external_extra_type \"$_external_tag\" from external $_external_uri"
+			echo "Fetching $_external_checkout_type \"$_external_tag\" from external $_external_uri"
 			hg clone -q --updaterev "$_external_tag" "$_external_uri" "$_cqe_checkout_dir" || return 1
 		else # [ "$_external_tag" = "latest" ]; then
 			hg clone -q "$_external_uri" "$_cqe_checkout_dir" || return 1
@@ -1572,7 +1567,7 @@ external_uri=
 external_tag=
 external_type=
 external_slug=
-external_extra_type=
+external_checkout_type=
 process_external() {
 	if [ -n "$external_dir" ] && [ -n "$external_uri" ] && [ -z "$skip_externals" ]; then
 		# convert old curse repo urls
@@ -1630,22 +1625,7 @@ process_external() {
 		fi
 
 		echo "Fetching external: $external_dir"
-		(
-			id=$RANDOM
-			output_file="$releasedir/.$id.externalout"
-			checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_extra_type" &> "$output_file"
-			status=$?
-			if [ "$status" -eq 0 ]; then
-				start_group "$( head -n1 "$output_file" )" "external.$id"
-				tail -n+2 "$output_file"
-				end_group "external.$id"
-			else
-				awk -v r="\033[01;31m" -v n="\033[0m" '{printf r$0n "\n"}' "$output_file"
-				echo
-			fi
-			rm -f "$output_file" 2>/dev/null
-			exit $status
-		) &
+		checkout_external "$external_dir" "$external_uri" "$external_tag" "$external_type" "$external_slug" "$external_checkout_type" &> "$releasedir/.$BASHPID.externalout" &
 		external_pids+=($!)
 	fi
 	external_dir=
@@ -1653,7 +1633,7 @@ process_external() {
 	external_tag=
 	external_type=
 	external_slug=
-	external_extra_type=
+	external_checkout_type=
 }
 
 # Don't leave extra files around if exited early
@@ -1692,15 +1672,15 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 					url) external_uri=$yaml_value ;;
 					tag)
 						external_tag=$yaml_value
-						external_extra_type=$yaml_key
+						external_checkout_type=$yaml_key
 						;;
 					branch)
 						external_tag=$yaml_value
-						external_extra_type=$yaml_key
+						external_checkout_type=$yaml_key
 						;;
 					commit)
 						external_tag=$yaml_value
-						external_extra_type=$yaml_key
+						external_checkout_type=$yaml_key
 						;;
 					type) external_type=$yaml_value ;;
 					curse-slug) external_slug=$yaml_value ;;
@@ -1727,15 +1707,33 @@ if [ -z "$skip_externals" ] && [ -f "$pkgmeta_file" ]; then
 	# Reached end of file, so checkout any remaining queued externals.
 	process_external
 
-	if [ -n "$nolib_exclude" ]; then
+	if [ ${#external_pids[*]} -gt 0 ]; then
 		echo
 		echo "Waiting for externals to finish..."
 		echo
-		for i in ${!external_pids[*]}; do
-			if ! wait "${external_pids[i]}"; then
-				_external_error=1
-			fi
+
+		while [ ${#external_pids[*]} -gt 0 ]; do
+			wait -n
+			for i in ${!external_pids[*]}; do
+				pid=${external_pids[i]}
+				if ! kill -0 $pid 2>/dev/null; then
+					_external_output="$releasedir/.$pid.externalout"
+					if ! wait $pid; then
+						_external_error=1
+						# wrap each line with a bright red color code
+						awk '{ printf "\033[01;31m%s\033[0m\n", $0 }' "$_external_output"
+						echo
+					else
+						start_group "$( head -n1 "$_external_output" )" "external.$pid"
+						tail -n+2 "$_external_output"
+						end_group "external.$pid"
+					fi
+					rm -f "$_external_output" 2>/dev/null
+					unset 'external_pids[i]'
+				fi
+			done
 		done
+
 		if [ -n "$_external_error" ]; then
 			echo
 			echo "There was an error fetching externals :(" >&2
@@ -1759,51 +1757,40 @@ fi
 # not contain a manual changelog.
 if [ -n "$manual_changelog" ] && [ -f "$topdir/$changelog" ]; then
 	start_group "Using manual changelog at $changelog" "changelog"
-	echo
 	head -n7 "$topdir/$changelog"
 	[ "$( wc -l < "$topdir/$changelog" )" -gt 7 ] && echo "..."
 	end_group "changelog"
 
-	if [ "$changelog_markup" = "markdown" ]; then
-		# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
-		# Requires pandoc (http://pandoc.org/)
-		_html_changelog=
-		if pandoc --version &>/dev/null; then
-			_html_changelog=$( pandoc -t html "$topdir/$changelog" )
-		fi
-		if [ -n "$_html_changelog" ]; then
-			wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
-			echo "$_html_changelog" | sed \
-				-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
-				-e 's/<\(\/\)\?em>/[\1i]/g' \
-				-e 's/<\(\/\)\?strong>/[\1b]/g' \
-				-e 's/<ul[^>]*>/[list]/g' -e 's/<ol[^>]*>/[list="1"]/g' \
-				-e 's/<\/[ou]l>/[\/list]\n/g' \
-				-e 's/<li>/[*]/g' -e 's/<\/li>//g' -e '/^\s*$/d' \
-				-e 's/<h1[^>]*>/[size="6"]/g' -e 's/<h2[^>]*>/[size="5"]/g' -e 's/<h3[^>]*>/[size="4"]/g' \
-				-e 's/<h4[^>]*>/[size="3"]/g' -e 's/<h5[^>]*>/[size="3"]/g' -e 's/<h6[^>]*>/[size="3"]/g' \
-				-e 's/<\/h[1-6]>/[\/size]\n/g' \
-				-e 's/<a href=\"\([^"]\+\)\"[^>]*>/[url="\1"]/g' -e 's/<\/a>/\[\/url]/g' \
-				-e 's/<img src=\"\([^"]\+\)\"[^>]*>/[img]\1[\/img]/g' \
-				-e 's/<\(\/\)\?blockquote>/[\1quote]\n/g' \
-				-e 's/<pre><code>/[code]\n/g' -e 's/<\/code><\/pre>/[\/code]\n/g' \
-				-e 's/<code>/[font="monospace"]/g' -e 's/<\/code>/[\/font]/g' \
-				-e 's/<\/p>/\n/g' \
-				-e 's/<[^>]\+>//g' \
-				-e 's/&quot;/"/g' \
-				-e 's/&amp;/&/g' \
-				-e 's/&lt;/</g' \
-				-e 's/&gt;/>/g' \
-				-e "s/&#39;/'/g" \
-				| line_ending_filter > "$wowi_changelog"
-
-				# extra conversion for discount markdown
-				# -e 's/&\(ld\|rd\)quo;/"/g' \
-				# -e "s/&\(ls\|rs\)quo;/'/g" \
-				# -e 's/&ndash;/--/g' \
-				# -e 's/&hellip;/.../g' \
-				# -e 's/^[ \t]*//g' \
-		fi
+	# Convert Markdown to BBCode (with HTML as an intermediary) for sending to WoWInterface
+	# Requires pandoc (http://pandoc.org/)
+	if [ "$changelog_markup" = "markdown" ] && [ -n "$wowi_convert_changelog" ] && hash pandoc &>/dev/null; then
+		wowi_changelog="$releasedir/WOWI-$project_version-CHANGELOG.txt"
+		pandoc -f commonmark -t html "$topdir/$changelog" | sed \
+			-e 's/<\(\/\)\?\(b\|i\|u\)>/[\1\2]/g' \
+			-e 's/<\(\/\)\?em>/[\1i]/g' \
+			-e 's/<\(\/\)\?strong>/[\1b]/g' \
+			-e 's/<ul[^>]*>/[list]/g' -e 's/<ol[^>]*>/[list="1"]/g' \
+			-e 's/<\/[ou]l>/[\/list]\n/g' \
+			-e 's/<li><p>/[*]/g' -e 's/<li>/[*]/g' -e 's/<\/p><\/li>//g' -e 's/<\/li>//g' \
+			-e 's/\[\*\]\[ \] /[*]☐ /g' -e 's/\[\*\]\[[xX]\] /[*]☒ /g' \
+			-e 's/<h1[^>]*>/[size="6"]/g' -e 's/<h2[^>]*>/[size="5"]/g' -e 's/<h3[^>]*>/[size="4"]/g' \
+			-e 's/<h4[^>]*>/[size="3"]/g' -e 's/<h5[^>]*>/[size="3"]/g' -e 's/<h6[^>]*>/[size="3"]/g' \
+			-e 's/<\/h[1-6]>/[\/size]\n/g' \
+			-e 's/<blockquote>/[quote]/g' -e 's/<\/blockquote>/[\/quote]\n/g' \
+			-e 's/<div class="sourceCode"[^>]*><pre class="sourceCode lua"><code class="sourceCode lua">/[highlight="lua"]/g' -e 's/<\/code><\/pre><\/div>/[\/highlight]\n/g' \
+			-e 's/<pre><code>/[code]/g' -e 's/<\/code><\/pre>/[\/code]\n/g' \
+			-e 's/<code>/[font="monospace"]/g' -e 's/<\/code>/[\/font]/g' \
+			-e 's/<a href=\"\([^"]\+\)\"[^>]*>/[url="\1"]/g' -e 's/<\/a>/\[\/url]/g' \
+			-e 's/<img src=\"\([^"]\+\)\"[^>]*>/[img]\1[\/img]/g' \
+			-e 's/<hr \/>/_____________________________________________________________________________\n/g' \
+			-e 's/<\/p>/\n/g' \
+			-e '/^<[^>]\+>$/d' -e 's/<[^>]\+>//g' \
+			-e 's/&quot;/"/g' \
+			-e 's/&amp;/&/g' \
+			-e 's/&lt;/</g' \
+			-e 's/&gt;/>/g' \
+			-e "s/&#39;/'/g" \
+			| line_ending_filter > "$wowi_changelog"
 	fi
 else
 	if [ -n "$manual_changelog" ]; then
@@ -1815,6 +1802,7 @@ else
 
 	start_group "Generating changelog of commits into $changelog" "changelog"
 
+	_changelog_range=
 	if [ "$repository_type" = "git" ]; then
 		changelog_url=
 		changelog_version=
@@ -1822,7 +1810,6 @@ else
 		changelog_url_wowi=
 		changelog_version_wowi=
 		changelog_previous_wowi="[url=${project_github_url}/releases]Previous Releases[/url]"
-		_changelog_range=
 		if [ -z "$previous_version" ] && [ -z "$tag" ]; then
 			# no range, show all commits up to ours
 			changelog_url="[Full Changelog](${project_github_url}/commits/${project_hash})"
@@ -1865,7 +1852,7 @@ else
 			changelog_previous=
 			changelog_previous_wowi=
 		fi
-		changelog_date=$( TZ= printf "%(%Y-%m-%d)T" "$project_timestamp" )
+		changelog_date=$( TZ='' printf "%(%Y-%m-%d)T" "$project_timestamp" )
 
 		cat <<- EOF | line_ending_filter > "$pkgdir/$changelog"
 		# $project
@@ -1878,8 +1865,8 @@ else
 			| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' -e 's/$/  /' \
 			      -e 's/\([a-zA-Z0-9]\)_\([a-zA-Z0-9]\)/\1\\_\2/g' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
-			      -e '/git-svn-id:/d' -e '/^\s*This reverts commit [0-9a-f]\{40\}\.\s*$/d' \
-			      -e '/^\s*$/d' \
+			      -e '/git-svn-id:/d' -e '/^[[:space:]]*This reverts commit [0-9a-f]\{40\}\.[[:space:]]*$/d' \
+			      -e '/^[[:space:]]*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 		# WoWI uses BBCode, generate something usable to post to the site
@@ -1895,18 +1882,19 @@ else
 			git -C "$topdir" log "$_changelog_range" --pretty=format:"###%B" \
 				| sed -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
 				      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
-				      -e '/git-svn-id:/d' -e '/^\s*This reverts commit [0-9a-f]\{40\}\.\s*$/d' \
-				      -e '/^\s*$/d' \
+				      -e '/git-svn-id:/d' -e '/^[[:space:]]*This reverts commit [0-9a-f]\{40\}\.[[:space:]]*$/d' \
+				      -e '/^[[:space:]]*$/d' \
 				| line_ending_filter >> "$wowi_changelog"
 			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
 		fi
 
 	elif [ "$repository_type" = "svn" ]; then
-		_changelog_range=
-		if [ -n "$previous_version" ]; then
+		if [ -n "$previous_revision" ]; then
 			_changelog_range="-r$project_revision:$previous_revision"
+		else
+			_changelog_range="-rHEAD:1"
 		fi
-		changelog_date=$( TZ= printf "%(%Y-%m-%d)T" "$project_timestamp" )
+		changelog_date=$( TZ='' printf "%(%Y-%m-%d)T" "$project_timestamp" )
 
 		cat <<- EOF | line_ending_filter > "$pkgdir/$changelog"
 		# $project
@@ -1920,7 +1908,7 @@ else
 			      -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/- /g' -e 's/$/  /' \
 			      -e 's/\([a-zA-Z0-9]\)_\([a-zA-Z0-9]\)/\1\\_\2/g' \
 			      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
-			      -e '/^\s*$/d' \
+			      -e '/^[[:space:]]*$/d' \
 			| line_ending_filter >> "$pkgdir/$changelog"
 
 		# WoWI uses BBCode, generate something usable to post to the site
@@ -1938,17 +1926,18 @@ else
 				| sed -e 's/<msg>/###/g' -e 's/<\/msg>//g' \
 				      -e 's/^/    /g' -e 's/^ *$//g' -e 's/^    ###/[*]/g' \
 				      -e 's/\[ci skip\]//g' -e 's/\[skip ci\]//g' \
-				      -e '/^\s*$/d' \
+				      -e '/^[[:space:]]*$/d' \
 				| line_ending_filter >> "$wowi_changelog"
 			echo "[/list]" | line_ending_filter >> "$wowi_changelog"
 		fi
 
 	elif [ "$repository_type" = "hg" ]; then
-		_changelog_range=.
 		if [ -n "$previous_revision" ]; then
 			_changelog_range="::$project_revision - ::$previous_revision - filelog(.hgtags)"
+		else
+			_changelog_range="."
 		fi
-		changelog_date=$( TZ= printf "%(%Y-%m-%d)T" "$project_timestamp" )
+		changelog_date=$( TZ='' printf "%(%Y-%m-%d)T" "$project_timestamp" )
 
 		cat <<- EOF | line_ending_filter > "$pkgdir/$changelog"
 		# $project
@@ -2067,7 +2056,6 @@ if [ -z "$skip_zipfile" ]; then
 	fi
 
 	start_group "Creating archive: $archive_name" "archive"
-
 	if [ -f "$archive" ]; then
 		rm -f "$archive"
 	fi
@@ -2076,13 +2064,10 @@ if [ -z "$skip_zipfile" ]; then
 	if [ ! -f "$archive" ]; then
 		exit 1
 	fi
-
 	end_group "archive"
 
 	# Create nolib version of the zipfile
 	if [ -n "$enable_nolib_creation" ] && [ -z "$nolib" ] && [ -n "$nolib_exclude" ]; then
-		start_group "Creating no-lib archive: $nolib_archive_name" "archive.nolib"
-
 		# run the nolib_filter
 		find "$pkgdir" -type f \( -name "*.xml" -o -name "*.toc" \) -print | while read -r file; do
 			case $file in
@@ -2095,6 +2080,7 @@ if [ -z "$skip_zipfile" ]; then
 		# make the exclude paths relative to the release directory
 		nolib_exclude=${nolib_exclude//$releasedir\//}
 
+		start_group "Creating no-lib archive: $nolib_archive_name" "archive.nolib"
 		if [ -f "$nolib_archive" ]; then
 			rm -f "$nolib_archive"
 		fi
@@ -2104,7 +2090,6 @@ if [ -z "$skip_zipfile" ]; then
 		if [ ! -f "$nolib_archive" ]; then
 			exit_code=1
 		fi
-
 		end_group "archive.nolib"
 	fi
 
@@ -2116,7 +2101,7 @@ if [ -z "$skip_zipfile" ]; then
 	upload_wowinterface=$( [[ -z "$skip_upload" && -n "$tag" && -n "$addonid" && -n "$wowi_token" ]] && echo true )
 	upload_github=$( [[ -z "$skip_upload" && -n "$tag" && -n "$project_github_slug" && -n "$github_token" ]] && echo true )
 
-	if [[ -n "$upload_curseforge" || -n "$upload_wowinterface" || -n "$upload_github" ]] && ! jq --version &>/dev/null; then
+	if [[ -n "$upload_curseforge" || -n "$upload_wowinterface" || -n "$upload_github" ]] && ! hash jq &>/dev/null; then
 		echo "Skipping upload because \"jq\" was not found."
 		echo
 		upload_curseforge=
@@ -2131,8 +2116,8 @@ if [ -z "$skip_zipfile" ]; then
 			if [ -n "$game_version" ]; then
 				game_version_id=$(
 					_v=
-					IFS=',' read -ra V <<< "$game_version"
-					for i in "${V[@]}"; do
+					readarray -td, <<< "$game_version"
+					for i in ${MAPFILE[*]}; do
 						_v="$_v,\"$i\""
 					done
 					_v="[${_v#,}]"
@@ -2140,15 +2125,8 @@ if [ -z "$skip_zipfile" ]; then
 					echo "$_cf_versions" | jq -c --argjson v "$_v" 'map(select(.name as $x | $v | index($x)) | .id) | select(length > 0)' 2>/dev/null
 				)
 				if [ -n "$game_version_id" ]; then
-					# and now the reverse, since an invalid version will just be dropped (jq newlines are crlf on windows /wrists)
-					game_version=$(
-						_v=
-						mapfile -t V < <( echo "$_cf_versions" | jq -r --argjson v "$game_version_id" '.[] | select(.id as $x | $v | index($x)) | .name' 2>/dev/null )
-						for i in "${V[@]}"; do
-							_v="$_v,${i%%[[:cntrl:]]}"
-						done
-						echo "${_v#,}"
-					)
+					# and now the reverse, since an invalid version will just be dropped
+					game_version=$( echo "$_cf_versions" | jq -r --argjson v "$game_version_id" 'map(select(.id as $x | $v | index($x)) | .name) | join(",")' 2>/dev/null )
 				fi
 			fi
 			if [ -z "$game_version_id" ]; then
