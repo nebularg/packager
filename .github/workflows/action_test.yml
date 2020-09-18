@@ -15,6 +15,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: BigWigsMods/BigWigs
+        ref: v184.4
         fetch-depth: 0
 
     - name: Run action
@@ -30,6 +31,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: BigWigsMods/BigWigs
+        ref: v184.4
         fetch-depth: 0
 
     - name: Run action
