@@ -1,0 +1,23 @@
+name: Create release
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create release
+        run: gh release create "${GITHUB_REF#refs/tags/}" -n "${GITHUB_REF#refs/tags/} Release"
+      - name: Update tag
+        run: |
+          tag=${GITHUB_REF#refs/tags/}
+          short_tag=${tag%%.*}
+          git config advice.nestedTag false
+          git tag -f "$short_tag" "$tag"
+          git push -f origin "$short_tag"
