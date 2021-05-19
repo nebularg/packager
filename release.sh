@@ -347,8 +347,8 @@ if [ -n "$GITHUB_ACTIONS" ]; then
 			exit 0
 		fi
 	fi
-	start_group() { echo "##[group]$1"; }
-	end_group() { echo "##[endgroup]"; }
+	start_group() { echo "::group::$1"; }
+	end_group() { echo "::endgroup::"; }
 fi
 unset check_tag
 
