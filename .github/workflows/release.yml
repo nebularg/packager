@@ -22,4 +22,5 @@ jobs:
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "<>"
           git tag -f "$short_tag" "$tag" -m "Update $short_tag to $tag"
-          git push -f origin "$short_tag"
+          git push origin :"$short_tag" 2>/dev/null || true
+          git push origin "$short_tag"
