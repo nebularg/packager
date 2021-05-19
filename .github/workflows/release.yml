@@ -19,5 +19,5 @@ jobs:
           tag=${GITHUB_REF#refs/tags/}
           short_tag=${tag%%.*}
           git config advice.nestedTag false
-          git tag -f "$short_tag" "$tag"
+          git tag -f "$short_tag" "$tag" -m "Update $short_tag to $tag"
           git push -f origin "$short_tag"
